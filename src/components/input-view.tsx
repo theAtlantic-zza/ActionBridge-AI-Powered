@@ -55,7 +55,24 @@ async function renderPdfFirstPageToDataUrl(file: File): Promise<string> {
   return canvas.toDataURL("image/png");
 }
 
-async function renderPdfPagesToDataUrls(file: File, maxPages: number): Promise<string[]> {
+async function getPdfPageCount(file: File): Promise<number> {
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const workerSrc = new URL(
+    "pdfjs-dist/legacy/build/pdf.worker.min.mjs",
+    import.meta.url
+  ).toString();
+  (pdfjs as any).GlobalWorkerOptions.workerSrc = workerSrc;
+  const getDocument = (pdfjs as any).getDocument as (args: any) => any;
+
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await getDocument({ data: arrayBuffer }).promise;
+  return Math.max(1, Number(pdf.numPages || 1));
+}
+
+async function renderPdfPagesToDataUrls(
+  file: File,
+  maxPages: number
+): Promise<string[]> {
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
   const workerSrc = new URL(
     "pdfjs-dist/legacy/build/pdf.worker.min.mjs",
@@ -90,8 +107,13 @@ interface InputViewProps {
 export function InputView({ onAnalyze }: InputViewProps) {
   const [text, setText] = useState("");
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>(null);
-  const [ocrCandidate, setOcrCandidate] = useState<{ file: File; reason: string } | null>(null);
+  const [ocrCandidate, setOcrCandidate] = useState<{
+    file: File;
+    reason: string;
+    pageCount: number;
+  } | null>(null);
   const [ocrBusy, setOcrBusy] = useState(false);
+  const [ocrPageLimit, setOcrPageLimit] = useState<1 | 3>(1);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = async (file: File) => {
@@ -125,10 +147,18 @@ export function InputView({ onAnalyze }: InputViewProps) {
         if (!res.ok) {
           // If the PDF has no text layer, offer OCR fallback instead of just failing.
           if (res.status === 422) {
+            let pageCount = 1;
+            try {
+              pageCount = await getPdfPageCount(file);
+            } catch {
+              pageCount = 1;
+            }
+            setOcrPageLimit(1);
             setOcrCandidate({
               file,
               reason:
                 "这份 PDF 看起来是截图/扫描件（无可提取文本层），可尝试 OCR 识别。",
+              pageCount,
             });
           } else {
             setOcrCandidate(null);
@@ -145,9 +175,17 @@ export function InputView({ onAnalyze }: InputViewProps) {
 
       if (!normalized || looksLikeNoTextLayer) {
         if (ext === "pdf") {
+          let pageCount = 1;
+          try {
+            pageCount = await getPdfPageCount(file);
+          } catch {
+            pageCount = 1;
+          }
+          setOcrPageLimit(1);
           setOcrCandidate({
             file,
             reason: "这份 PDF 看起来是截图/扫描件（无可提取文本层），可尝试 OCR 识别。",
+            pageCount,
           });
         } else {
           setOcrCandidate(null);
@@ -185,7 +223,8 @@ export function InputView({ onAnalyze }: InputViewProps) {
     setUploadStatus({ type: "loading", message: "正在进行 OCR 识别（准备渲染页面…）" });
     try {
       const MAX_OCR_PAGES = 3;
-      const pageImages = await renderPdfPagesToDataUrls(ocrCandidate.file, MAX_OCR_PAGES);
+      const maxPages = ocrPageLimit === 3 ? MAX_OCR_PAGES : 1;
+      const pageImages = await renderPdfPagesToDataUrls(ocrCandidate.file, maxPages);
       const saved = localStorage.getItem("actionbridge_api_config");
       const cfg = saved ? (JSON.parse(saved) as { apiKey?: string; baseUrl?: string }) : {};
       const apiKey = (cfg.apiKey || "").trim();
@@ -216,7 +255,7 @@ export function InputView({ onAnalyze }: InputViewProps) {
       setOcrCandidate(null);
       setUploadStatus({
         type: "success",
-        message: `OCR 已提取前 ${Math.min(pageImages.length, 3)} 页文本并回填，请检查后点击「开始分析」`,
+        message: `OCR 已提取前 ${pageImages.length} 页文本并回填，请检查后点击「开始分析」`,
       });
       setTimeout(() => setUploadStatus(null), 8000);
     } catch (e) {
@@ -462,16 +501,44 @@ export function InputView({ onAnalyze }: InputViewProps) {
           {ocrCandidate && (
             <div className="mt-2 rounded-xl border border-amber-200/60 bg-amber-50/60 px-3 py-2">
               <p className="text-xs text-amber-700">{ocrCandidate.reason}</p>
+              <p className="mt-1 text-[11px] text-amber-700/80">
+                检测到该 PDF 共 {ocrCandidate.pageCount} 页。页数越多，OCR 调用次数越多，成本与耗时会增加。
+              </p>
+
+              {ocrCandidate.pageCount > 1 && (
+                <div className="mt-2 flex items-center gap-3 text-xs text-amber-800">
+                  <label className="flex items-center gap-1.5">
+                    <input
+                      type="radio"
+                      name="ocrPageLimit"
+                      checked={ocrPageLimit === 1}
+                      onChange={() => setOcrPageLimit(1)}
+                    />
+                    仅识别第 1 页（更快）
+                  </label>
+                  <label className="flex items-center gap-1.5">
+                    <input
+                      type="radio"
+                      name="ocrPageLimit"
+                      checked={ocrPageLimit === 3}
+                      onChange={() => setOcrPageLimit(3)}
+                    />
+                    识别前 3 页（更完整/成本更高）
+                  </label>
+                </div>
+              )}
               <button
                 type="button"
                 onClick={handleTryOcr}
                 disabled={ocrBusy}
                 className="mt-2 rounded-lg bg-[#1a1a2e] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#111126] disabled:opacity-50"
               >
-                {ocrBusy ? "OCR 识别中…" : "尝试 OCR 提取（最多 3 页）"}
+                {ocrBusy
+                  ? "OCR 识别中…"
+                  : `尝试 OCR 提取（${ocrPageLimit === 3 ? "前 3 页" : "第 1 页"}）`}
               </button>
               <p className="mt-1.5 text-[11px] text-amber-700/80">
-                提示：OCR 会把 PDF 的前 1-3 页截图上传到阿里云进行识别，回填后请人工检查再分析。
+                提示：OCR 会把所选页截图上传到阿里云进行识别，回填后请人工检查再分析。
               </p>
             </div>
           )}
