@@ -6,7 +6,7 @@
 
 AI-powered execution closure assistant for small teams.
 
-[Live Demo](https://actionbridge-ai-powered-production.up.railway.app) · [Features](#features--功能亮点) · [Quick Start](#quick-start--快速开始) · [Design Decisions](#design-decisions--设计决策)
+[Live Demo](https://actionbridge-ai-powered-production.up.railway.app) · [GitHub Repo](https://github.com/theAtlantic-zza/ActionBridge-AI-Powered) · [Example Workflow](#example-workflow--示例工作流) · [Schema](#extraction-schema--结构化输出-schema) · [Quick Start](#quick-start--快速开始)
 
 ![Next.js](https://img.shields.io/badge/Next.js_16-000?logo=nextdotjs&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
@@ -52,6 +52,119 @@ ActionBridge closes this gap.
 > *One flow, three moments:* **Paste or upload** discussion → **Extract** actionable follow-ups → **Review & export** a checklist your team can execute.
 >
 > *一条主线，三步到位：* **粘贴/上传**讨论 → **提取**可执行清单 → **审核并导出**会后跟进。
+
+---
+
+## Example Workflow / 示例工作流
+
+ActionBridge is not a summary tool. It’s a **post-discussion execution closure loop**: turn messy talk into **assignable, reviewable follow-up**.
+
+ActionBridge 不是摘要工具，而是 **讨论之后的执行收口闭环**：把“聊完了”变成“可以分派、可以核对、可以导出跟进”的清单。
+
+### 1) Discussion snippet / 一段真实感讨论片段
+
+```text
+李明：这周 v2.0 的上线要定了，周三能上吗？
+张薇：UI 主流程没问题，但详情页还差交互动效，估计还要两天。
+赵凯：测试同学下周才释放，测试窗口可能只有两天，风险有点高。
+李明：那详情页动效先降级？如果不影响主流程就先上。
+张薇：可以，我今晚出个降级方案，明天给你确认。
+赵凯：那我也补一个回归测试清单，周一先跑一轮。
+```
+
+### 2) Structured output / 结构化输出（可编辑 + 有依据）
+
+#### Action Items / 任务项
+- **[A-1]** 输出「详情页动效降级方案」并评审  
+  - **owner**: 张薇 · **dueDate**: 明天  
+  - **evidence**: “我今晚出个降级方案，明天给你确认。”  
+  - **confidence**: high · **needsReview**: false
+- **[A-2]** 补齐回归测试清单并在周一先跑一轮  
+  - **owner**: 赵凯 · **dueDate**: 周一  
+  - **evidence**: “我也补一个回归测试清单，周一先跑一轮。”  
+  - **confidence**: high · **needsReview**: false
+
+#### Open Questions / 待确认事项
+- **[Q-1]** v2.0 是否按「主流程优先 + 详情页动效降级」策略在周三上线？  
+  - **evidence**: “周三能上吗？” / “那详情页动效先降级？…就先上。”  
+  - **confidence**: medium · **needsReview**: true
+
+#### Risks / 风险点
+- **[R-1]** 测试窗口过短（仅两天）可能导致回归覆盖不足  
+  - **evidence**: “测试窗口可能只有两天，风险有点高。”  
+  - **confidence**: high · **needsReview**: false
+
+#### Next Steps / 下一步动作（建议）
+- **[N-1]** 明天确认降级方案后，冻结上线范围并同步到群公告  
+  - **owner**: 李明（建议） · **priority**: high  
+  - **evidence**: “明天给你确认。” / “周三能上吗？”  
+  - **confidence**: medium · **needsReview**: true
+
+> The point is not “what was said” but “what must happen next”.  
+> 重点不是“总结讨论内容”，而是“把讨论收口成下一步必须执行的动作”。
+
+---
+
+## Validation & Iteration / 用户反馈与迭代
+
+This project was iterated based on real usage friction — not built in a vacuum:
+
+- **“像脚本，不像产品”** → 首页加入结果预览 + 结果页升级为两栏工作台（对照原文、审核、导出）
+- **“输入门槛高”** → 支持 `.txt/.md/.pdf` 导入；PDF 无文本层时提供 OCR 兜底（并明确成本/隐私提示）
+- **“不信 AI”** → 每条结果默认展示 evidence，并用 needs review / 置信度把不确定性暴露出来
+- **“闭环不顺”** → 导出区常驻侧栏，导出前提醒未确认项；“新建分析”从主动作降级到更合适位置
+
+---
+
+## Why no voice / real-time transcription / 为什么不做语音与实时转写
+
+Not because it’s technically hard — but because it **changes the product’s center of gravity**.
+
+- **This product focuses on post-discussion execution closure**: review, evidence, confirmation, export.
+- **Real-time transcription shifts priority to content capture** (latency, speaker diarization, meeting integrations, storage & privacy), which is a different product.
+- For this portfolio MVP, the highest ROI is tightening the closure loop via **file input → structured extraction → human review → export**.
+
+---
+
+## Extraction Schema / 结构化输出 Schema
+
+ActionBridge asks the model for a fixed, reviewable structure. The UI is built around **explicit missing fields** (no guessing).
+
+### Conceptual schema (product view)
+
+Each item includes:
+- `id`
+- `text`
+- `evidence` (source excerpt)
+- `confidence` (`high` / `medium` / `low`)
+- `needsReview` (true when uncertain or incomplete)
+
+`ActionItem` additionally includes:
+- `owner` (nullable)
+- `dueDate` (nullable)
+
+### Implementation schema (repo)
+
+The code uses a closely aligned TypeScript shape:
+
+```ts
+type Confidence = "high" | "medium" | "low";
+
+type BaseItem = {
+  id: string;
+  description: string;   // text
+  sourceExcerpt: string; // evidence
+  confidence: Confidence;
+  confirmed: boolean;    // confirmed === !needsReview
+};
+
+type TaskItem = BaseItem & { owner: string | null; deadline: string | null };
+type ConfirmationItem = BaseItem & { relatedTo: string | null };
+type RiskItem = BaseItem & { impact: string };
+type NextStepItem = BaseItem & { owner: string | null; priority: "high" | "medium" | "low" };
+```
+
+**Design constraint:** missing `owner/deadline` stays explicit (e.g. `"待指定"` in UI) instead of being guessed.
 
 ---
 
