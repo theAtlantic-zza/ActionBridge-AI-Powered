@@ -5,7 +5,7 @@ import type { AnalysisResult } from "@/lib/types";
 import { InputView } from "@/components/input-view";
 import { AnalyzingView } from "@/components/analyzing-view";
 import { ResultView } from "@/components/result-view";
-import { ApiKeyButton, useApiKey } from "@/components/api-key-panel";
+import { ApiKeyButton, useApiConfig } from "@/components/api-key-panel";
 
 type AppPhase = "input" | "analyzing" | "result";
 
@@ -17,7 +17,7 @@ export default function Home() {
   const [originalInput, setOriginalInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const { apiKey, saveKey } = useApiKey();
+  const { config, saveConfig } = useApiConfig();
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -33,13 +33,22 @@ export default function Home() {
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, userApiKey: apiKey || undefined }),
+        body: JSON.stringify({
+          text,
+          userApiKey: config.apiKey || undefined,
+          userBaseUrl: config.baseUrl || undefined,
+          userModel: config.model || undefined,
+        }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || "分析失败");
+        const detail =
+          typeof data.detail === "string" && data.detail
+            ? `（${data.detail}）`
+            : "";
+        throw new Error((data.error || "分析失败") + detail);
       }
 
       setResult(data.result);
@@ -64,7 +73,7 @@ export default function Home() {
     <div className="flex flex-1 flex-col">
       {/* Header */}
       <header className="border-b border-stone-200/60 px-6 py-4 backdrop-blur-sm bg-[#f8f8f6]/80 sticky top-0 z-10">
-        <div className="mx-auto flex max-w-3xl items-center justify-between">
+        <div className={`mx-auto flex items-center justify-between transition-all ${phase === "result" ? "max-w-6xl" : "max-w-3xl"}`}>
           <div className="flex items-center gap-2.5">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#1a1a2e] text-[11px] font-bold text-white">
               A
@@ -73,17 +82,7 @@ export default function Home() {
               ActionBridge
             </h1>
           </div>
-          <div className="flex items-center gap-2">
-            {phase === "result" && (
-              <button
-                onClick={handleNewAnalysis}
-                className="text-sm text-stone-500 hover:text-[#1a1a2e] transition-colors"
-              >
-                新建分析
-              </button>
-            )}
-            <ApiKeyButton apiKey={apiKey} onSave={saveKey} onToast={showToast} />
-          </div>
+          <ApiKeyButton config={config} onSave={saveConfig} onToast={showToast} />
         </div>
       </header>
 
