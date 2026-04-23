@@ -39,13 +39,15 @@ export function ResultView({
   const missingOwnerCount = result.tasks.filter((t: TaskItem) => !t.owner).length +
     result.nextSteps.filter((n) => !n.owner).length;
 
-  const updateItem = <K extends keyof AnalysisResult>(
-    section: K,
+  const updateItem = (
+    section: "tasks" | "pendingConfirmations" | "risks" | "nextSteps",
     index: number,
     updates: Record<string, unknown>
   ) => {
-    const arr = [...(result[section] as unknown[])];
-    arr[index] = { ...arr[index], ...updates };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const arr = (result[section] as any[]).map((item, i) =>
+      i === index ? { ...item, ...updates } : item
+    );
     onUpdateResult({ ...result, [section]: arr });
   };
 
