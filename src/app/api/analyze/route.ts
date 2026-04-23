@@ -8,6 +8,15 @@ function normalizeBaseUrl(url: string): string {
   return url.replace(/\/+$/, "");
 }
 
+type AnalyzePayload = {
+  tasks?: unknown;
+  actionItems?: unknown;
+  pendingConfirmations?: unknown;
+  openQuestions?: unknown;
+  risks?: unknown;
+  nextSteps?: unknown;
+};
+
 function buildErrorMessage(status: number, body: string): string {
   if (status === 401 || status === 403) {
     return "API Key 无效或无调用权限，请检查密钥和模型权限";
@@ -22,6 +31,50 @@ function buildErrorMessage(status: number, body: string): string {
     return "模型名无效，请检查 Model 配置（例如 qwen-plus / qwen-max）";
   }
   return "AI 服务调用失败，请稍后重试";
+}
+
+function tryExtractJsonObject(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) return trimmed;
+
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (fenced?.[1]) {
+    const candidate = fenced[1].trim();
+    if (candidate.startsWith("{") && candidate.endsWith("}")) return candidate;
+  }
+
+  const first = trimmed.indexOf("{");
+  const last = trimmed.lastIndexOf("}");
+  if (first >= 0 && last > first) {
+    return trimmed.slice(first, last + 1);
+  }
+  return null;
+}
+
+function normalizeContent(rawContent: unknown): string {
+  // OpenAI-compatible providers may return content as:
+  // 1) string
+  // 2) array of content parts: [{ type: "text", text: "..." }]
+  if (typeof rawContent === "string") return rawContent;
+  if (Array.isArray(rawContent)) {
+    return rawContent
+      .map((p) => {
+        if (typeof p === "string") return p;
+        if (p && typeof p === "object" && "text" in p) {
+          const text = (p as { text?: unknown }).text;
+          return typeof text === "string" ? text : "";
+        }
+        return "";
+      })
+      .join("\n")
+      .trim();
+  }
+  return "";
+}
+
+function normalizeArray<T extends object>(input: unknown): T[] {
+  if (!Array.isArray(input)) return [];
+  return input.filter((item): item is T => !!item && typeof item === "object");
 }
 
 async function callChatCompletions(params: {
@@ -146,7 +199,7 @@ export async function POST(req: NextRequest) {
     }
 
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
+    const content = normalizeContent(data?.choices?.[0]?.message?.content);
 
     if (!content) {
       return NextResponse.json(
@@ -155,17 +208,40 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const parsed = JSON.parse(content);
+    const jsonText = tryExtractJsonObject(content);
+    if (!jsonText) {
+      console.error("LLM content is not JSON:", content.slice(0, 400));
+      return NextResponse.json(
+        { error: "AI 返回格式异常，请重试或更换模型" },
+        { status: 502 }
+      );
+    }
+
+    let parsed: AnalyzePayload;
+    try {
+      parsed = JSON.parse(jsonText) as AnalyzePayload;
+    } catch (parseErr) {
+      console.error("JSON parse error:", parseErr);
+      console.error("Raw content snippet:", content.slice(0, 400));
+      return NextResponse.json(
+        { error: "AI 返回格式异常，请重试或更换模型" },
+        { status: 502 }
+      );
+    }
 
     // Add confirmed: false to all items & ensure meta
-    const addConfirmed = <T extends object>(items: T[]): (T & { confirmed: boolean })[] =>
+    const addConfirmed = <T extends object>(
+      items: T[]
+    ): (T & { confirmed: boolean })[] =>
       (items || []).map((item) => ({ ...item, confirmed: false }));
 
     const result: AnalysisResult = {
-      tasks: addConfirmed(parsed.tasks || []),
-      pendingConfirmations: addConfirmed(parsed.pendingConfirmations || []),
-      risks: addConfirmed(parsed.risks || []),
-      nextSteps: addConfirmed(parsed.nextSteps || []),
+      tasks: addConfirmed(normalizeArray(parsed.tasks ?? parsed.actionItems)),
+      pendingConfirmations: addConfirmed(
+        normalizeArray(parsed.pendingConfirmations ?? parsed.openQuestions)
+      ),
+      risks: addConfirmed(normalizeArray(parsed.risks)),
+      nextSteps: addConfirmed(normalizeArray(parsed.nextSteps)),
       meta: {
         inputWordCount: text.trim().split(/\s+/).length,
         analyzedAt: new Date().toISOString(),
@@ -176,7 +252,15 @@ export async function POST(req: NextRequest) {
   } catch (e) {
     console.error("Analyze error:", e);
     return NextResponse.json(
-      { error: "分析过程中出现错误，请重试" },
+      {
+        error: "分析过程中出现错误，请重试",
+        detail:
+          process.env.NODE_ENV === "development"
+            ? e instanceof Error
+              ? e.message
+              : String(e)
+            : undefined,
+      },
       { status: 500 }
     );
   }
