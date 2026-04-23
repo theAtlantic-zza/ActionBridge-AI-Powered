@@ -166,6 +166,7 @@ export async function POST(req: NextRequest) {
         /response_format|json_object|unsupported|invalid_parameter/i.test(
           firstErr
         );
+      let finalErr = firstErr;
 
       if (canRetryWithoutResponseFormat) {
         response = await callChatCompletions({
@@ -175,10 +176,12 @@ export async function POST(req: NextRequest) {
           text,
           withResponseFormat: false,
         });
+        if (!response.ok) {
+          finalErr = await response.text();
+        }
       }
 
       if (!response.ok) {
-        const finalErr = await response.text();
         console.error("LLM API error:", {
           status: response.status,
           baseUrl,
