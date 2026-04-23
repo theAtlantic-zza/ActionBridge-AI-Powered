@@ -269,13 +269,13 @@ export function InputView({ onAnalyze }: InputViewProps) {
   };
 
   return (
-    <main className="flex flex-1 flex-col items-center px-6 py-8 sm:py-12">
+    <main className="flex flex-1 flex-col items-center px-6 py-6 sm:py-10">
       <div
         className="w-full max-w-3xl"
         style={{ animation: "fadeIn 0.4s ease-out" }}
       >
         {/* Hero */}
-        <section className="mb-12">
+        <section className="mb-8">
           <h2 className="text-3xl font-bold tracking-tight text-[#1a1a2e] sm:text-4xl leading-tight">
             讨论结束了，
             <br className="sm:hidden" />
@@ -287,7 +287,7 @@ export function InputView({ onAnalyze }: InputViewProps) {
         </section>
 
         {/* Value Props */}
-        <section className="mb-10 grid gap-4 sm:grid-cols-3">
+        <section className="mb-8 grid gap-4 sm:grid-cols-3">
           {[
             {
               icon: "01",
@@ -323,9 +323,9 @@ export function InputView({ onAnalyze }: InputViewProps) {
         </section>
 
         {/* Sample Output Preview — non-interactive, visually distinct */}
-        <section className="mb-10">
+        <section className="mb-8">
           <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-stone-400">
-            分析结果示例 ↓
+            看一段讨论是如何被收口成 todo list ↓
           </p>
           <div className="relative rounded-2xl border border-dashed border-stone-300/70 bg-stone-50/60 p-5 select-none">
             <span className="absolute top-3 right-3 rounded-full bg-stone-200/70 px-2 py-0.5 text-[10px] font-semibold text-stone-500 tracking-wide">
