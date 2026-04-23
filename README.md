@@ -37,7 +37,7 @@ ActionBridge closes this gap.
 - ❌ A note-taking app / 笔记工具
 - ❌ A collaboration platform / 协同平台
 
-**This IS:**
+**This Is:**
 - ✅ An execution closure assistant / 执行收口助手
 - ✅ The step between "we talked about it" and "we're actually doing it"
 
@@ -45,11 +45,13 @@ ActionBridge closes this gap.
 
 ## Screenshots / 界面预览
 
-| Input / 输入页 | Result / 执行收口面板 |
-|---|---|
-| ![Input](public/screenshots/input.png) | ![Result](public/screenshots/result.png) |
+| Overview / 首页预览 | Input / 输入与上传 | Result / 执行收口面板 |
+|---|---|---|
+| ![Overview](public/screenshots/actionbridge-overview.png) | ![Input](public/screenshots/actionbridge-input.png) | ![Result](public/screenshots/actionbridge-result.png) |
 
-> *Paste any discussion text → AI extracts structured action items → Human reviews and confirms → Export as team follow-up*
+> *One flow, three moments:* **Paste or upload** discussion → **Extract** actionable follow-ups → **Review & export** a checklist your team can execute.
+>
+> *一条主线，三步到位：* **粘贴/上传**讨论 → **提取**可执行清单 → **审核并导出**会后跟进。
 
 ---
 
