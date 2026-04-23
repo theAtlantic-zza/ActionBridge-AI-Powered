@@ -47,7 +47,7 @@ ActionBridge closes this gap.
 
 | Input / 输入页 | Result / 执行收口面板 |
 |---|---|
-| ![Input](screenshots/input.png) | ![Result](screenshots/result.png) |
+| ![Input](public/screenshots/input.png) | ![Result](public/screenshots/result.png) |
 
 > *Paste any discussion text → AI extracts structured action items → Human reviews and confirms → Export as team follow-up*
 
