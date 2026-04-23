@@ -6,7 +6,7 @@ import type { AnalysisResult } from "@/lib/types";
 
 export async function POST(req: NextRequest) {
   try {
-    const { text } = (await req.json()) as { text?: string };
+    const { text, userApiKey } = (await req.json()) as { text?: string; userApiKey?: string };
 
     if (!text || text.trim().length < 20) {
       return NextResponse.json(
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = userApiKey || process.env.OPENAI_API_KEY;
     const baseUrl =
       process.env.OPENAI_BASE_URL || "https://api.openai.com/v1";
     const model = process.env.OPENAI_MODEL || "gpt-4o-mini";

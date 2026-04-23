@@ -1,84 +1,106 @@
+<div align="center">
+
 # ActionBridge
 
 **Turn messy team discussions into executable follow-up.**
 
-ActionBridge is an AI-powered execution closure assistant designed for small team collaboration. It takes raw meeting notes, chat logs, or discussion transcripts and extracts what actually matters: tasks, owners, deadlines, pending confirmations, risks, and next steps.
+An AI-powered execution closure assistant for small teams.
 
-> This is not a meeting summarizer. It's not a note-taking tool.  
-> It's the step between "we talked about it" and "we're actually doing it."
+[Live Demo](https://actionbridge-ai-powered-production.up.railway.app) · [How It Works](#how-it-works) · [Design Decisions](#design-decisions)
+
+---
+
+</div>
 
 ## The Problem
 
-After every team meeting or group discussion, everyone *thinks* they know what was agreed. But in reality:
+After every meeting or group discussion, everyone *thinks* they know what was agreed.
 
-- Tasks go unassigned
-- Deadlines stay vague
-- Risks get mentioned and then forgotten
-- "I thought you were doing that" happens a week later
+But in reality — tasks go unassigned, deadlines stay vague, risks get mentioned and forgotten, and a week later someone says *"I thought you were handling that."*
 
-ActionBridge closes this gap by turning unstructured conversation into a structured, reviewable, editable action checklist.
+**ActionBridge closes this gap.**
+
+It's not a meeting summarizer. Not a note-taking tool. Not a collaboration platform.
+
+It's the step between *"we talked about it"* and *"we're actually doing it."*
 
 ## How It Works
 
-1. **Paste** any discussion text — meeting notes, Slack threads, Zoom transcripts, or even rough bullet points
-2. **Analyze** — AI extracts structured items from the discussion
-3. **Review & Edit** — every item shows its source excerpt, confidence level, and is fully editable
-4. **Confirm & Export** — check off items you agree with, then export as Markdown or CSV
+```
+Paste discussion → AI extracts structured items → Human reviews & edits → Export follow-up checklist
+```
 
-## Key Design Decisions
+1. **Paste** any discussion text — meeting notes, Slack threads, Zoom transcripts, rough bullet points
+2. **Analyze** — AI extracts tasks, owners, deadlines, risks, open questions, and next steps
+3. **Review** — every item shows its source excerpt and confidence level; low-confidence items are flagged for human review
+4. **Edit** — every field is editable because execution decisions shouldn't be fully automated
+5. **Export** — copy as team sync message, download as Markdown or CSV
 
-- **Source attribution on every item** — each extracted item links back to the original text, so you can verify it's not hallucinated
-- **Confidence marking** — high / medium / low indicators help you quickly spot items that need human judgment
-- **Human-in-the-loop editing** — AI proposes, humans decide. Every field is editable because execution decisions shouldn't be fully automated
-- **Mock mode** — works without any API key for demo and testing purposes
-- **Single-page flow** — no complex navigation, no account system. Paste, analyze, export. Done.
+## Design Decisions
+
+These are intentional product choices, not shortcuts:
+
+| Decision | Why |
+|---|---|
+| **Evidence on every item** | Each extracted item cites the original discussion text. Users can verify — not blindly trust. |
+| **Confidence marking** | High / Medium / Low indicators surface what the AI is uncertain about. Low-confidence items show "需人工确认". |
+| **Human-in-the-loop editing** | AI proposes, humans decide. The checkbox isn't decoration — it's the core interaction: *"I've reviewed this and agree."* |
+| **"待指定" for missing fields** | When AI can't determine an owner or deadline, it says so explicitly instead of guessing. |
+| **Review hints before export** | The export area shows how many items are unconfirmed or missing owners, nudging completion before sharing. |
+| **No history, no accounts** | This is a single-use tool by design. Paste, analyze, export, done. Complexity serves no one here. |
+| **Mock mode** | Works without any API key. The demo flow is identical to the real flow — same UI, same interactions, same export. |
 
 ## Quick Start
 
 ```bash
+git clone https://github.com/theAtlantic-zza/ActionBridge-AI-Powered.git
+cd ActionBridge-AI-Powered
 npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Click **Try Sample** to see it in action.
+Open [http://localhost:3000](http://localhost:3000). Click **中文示例** or **English Sample** to try it.
 
-### Optional: Connect a Real LLM
+### Connecting an AI Model
 
-Create a `.env.local` file:
+**Option A:** Click the **API Key** button in the top-right corner and enter your key directly in the browser. It's stored in localStorage only.
 
-```
+**Option B:** Create a `.env.local` file:
+
+```env
 OPENAI_API_KEY=sk-your-key
 OPENAI_BASE_URL=https://api.openai.com/v1
 OPENAI_MODEL=gpt-4o-mini
 ```
 
-Any OpenAI-compatible API works (OpenAI, DeepSeek, etc.). Without a key, the app runs in mock mode with realistic demo data.
+Any OpenAI-compatible API works (OpenAI, DeepSeek, etc.).
 
-## Tech Stack
-
-Next.js (App Router) · TypeScript · Tailwind CSS · React 19
-
-## Project Structure
+## Architecture
 
 ```
 src/
 ├── app/
-│   ├── api/analyze/route.ts   — analysis endpoint (LLM + mock fallback)
-│   ├── page.tsx               — single-page phase orchestrator
-│   └── layout.tsx             — root layout and metadata
+│   ├── api/analyze/route.ts   → Analysis endpoint (LLM + mock fallback)
+│   ├── page.tsx               → Single-page phase orchestrator
+│   └── layout.tsx             → Root layout
 ├── components/
-│   ├── input-view.tsx         — input phase UI
-│   ├── analyzing-view.tsx     — loading state
-│   ├── result-view.tsx        — result display + export toolbar
-│   ├── result-section.tsx     — section container
-│   └── result-item.tsx        — editable item card
+│   ├── input-view.tsx         → Input phase
+│   ├── analyzing-view.tsx     → Loading state with rotating messages
+│   ├── result-view.tsx        → Execution closure dashboard
+│   ├── result-section.tsx     → Color-coded section containers
+│   ├── result-item.tsx        → Editable item card with evidence
+│   └── api-key-panel.tsx      → BYOK API key management
 └── lib/
-    ├── types.ts               — core data schema
-    ├── prompt.ts              — LLM prompt design
-    ├── mock-result.ts         — demo data
-    ├── sample-data.ts         — sample input text
-    └── export.ts              — Markdown / CSV export
+    ├── types.ts               → Core data schema (TaskItem, RiskItem, etc.)
+    ├── prompt.ts              → LLM system prompt + user prompt builder
+    ├── mock-result.ts         → Demo data (Chinese + English)
+    ├── sample-data.ts         → Sample discussion inputs
+    └── export.ts              → Markdown / CSV export utilities
 ```
+
+## Tech Stack
+
+Next.js 16 · React 19 · TypeScript · Tailwind CSS v4
 
 ## License
 

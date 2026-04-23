@@ -5,6 +5,7 @@ import type { AnalysisResult } from "@/lib/types";
 import { InputView } from "@/components/input-view";
 import { AnalyzingView } from "@/components/analyzing-view";
 import { ResultView } from "@/components/result-view";
+import { ApiKeyButton, useApiKey } from "@/components/api-key-panel";
 
 type AppPhase = "input" | "analyzing" | "result";
 
@@ -16,6 +17,7 @@ export default function Home() {
   const [originalInput, setOriginalInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const { apiKey, saveKey } = useApiKey();
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -31,7 +33,7 @@ export default function Home() {
       const res = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, userApiKey: apiKey || undefined }),
       });
 
       const data = await res.json();
@@ -71,14 +73,17 @@ export default function Home() {
               ActionBridge
             </h1>
           </div>
-          {phase === "result" && (
-            <button
-              onClick={handleNewAnalysis}
-              className="text-sm text-stone-500 hover:text-[#1a1a2e] transition-colors"
-            >
-              新建分析
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {phase === "result" && (
+              <button
+                onClick={handleNewAnalysis}
+                className="text-sm text-stone-500 hover:text-[#1a1a2e] transition-colors"
+              >
+                新建分析
+              </button>
+            )}
+            <ApiKeyButton apiKey={apiKey} onSave={saveKey} onToast={showToast} />
+          </div>
         </div>
       </header>
 
