@@ -1,36 +1,85 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ActionBridge
 
-## Getting Started
+**Turn messy team discussions into executable follow-up.**
 
-First, run the development server:
+ActionBridge is an AI-powered execution closure assistant designed for small team collaboration. It takes raw meeting notes, chat logs, or discussion transcripts and extracts what actually matters: tasks, owners, deadlines, pending confirmations, risks, and next steps.
+
+> This is not a meeting summarizer. It's not a note-taking tool.  
+> It's the step between "we talked about it" and "we're actually doing it."
+
+## The Problem
+
+After every team meeting or group discussion, everyone *thinks* they know what was agreed. But in reality:
+
+- Tasks go unassigned
+- Deadlines stay vague
+- Risks get mentioned and then forgotten
+- "I thought you were doing that" happens a week later
+
+ActionBridge closes this gap by turning unstructured conversation into a structured, reviewable, editable action checklist.
+
+## How It Works
+
+1. **Paste** any discussion text — meeting notes, Slack threads, Zoom transcripts, or even rough bullet points
+2. **Analyze** — AI extracts structured items from the discussion
+3. **Review & Edit** — every item shows its source excerpt, confidence level, and is fully editable
+4. **Confirm & Export** — check off items you agree with, then export as Markdown or CSV
+
+## Key Design Decisions
+
+- **Source attribution on every item** — each extracted item links back to the original text, so you can verify it's not hallucinated
+- **Confidence marking** — high / medium / low indicators help you quickly spot items that need human judgment
+- **Human-in-the-loop editing** — AI proposes, humans decide. Every field is editable because execution decisions shouldn't be fully automated
+- **Mock mode** — works without any API key for demo and testing purposes
+- **Single-page flow** — no complex navigation, no account system. Paste, analyze, export. Done.
+
+## Quick Start
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000). Click **Try Sample** to see it in action.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Optional: Connect a Real LLM
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Create a `.env.local` file:
 
-## Learn More
+```
+OPENAI_API_KEY=sk-your-key
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_MODEL=gpt-4o-mini
+```
 
-To learn more about Next.js, take a look at the following resources:
+Any OpenAI-compatible API works (OpenAI, DeepSeek, etc.). Without a key, the app runs in mock mode with realistic demo data.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Tech Stack
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Next.js (App Router) · TypeScript · Tailwind CSS · React 19
 
-## Deploy on Vercel
+## Project Structure
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```
+src/
+├── app/
+│   ├── api/analyze/route.ts   — analysis endpoint (LLM + mock fallback)
+│   ├── page.tsx               — single-page phase orchestrator
+│   └── layout.tsx             — root layout and metadata
+├── components/
+│   ├── input-view.tsx         — input phase UI
+│   ├── analyzing-view.tsx     — loading state
+│   ├── result-view.tsx        — result display + export toolbar
+│   ├── result-section.tsx     — section container
+│   └── result-item.tsx        — editable item card
+└── lib/
+    ├── types.ts               — core data schema
+    ├── prompt.ts              — LLM prompt design
+    ├── mock-result.ts         — demo data
+    ├── sample-data.ts         — sample input text
+    └── export.ts              — Markdown / CSV export
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## License
+
+MIT
