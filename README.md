@@ -130,14 +130,14 @@ Open [http://localhost:3000](http://localhost:3000).
 ```env
 OPENAI_API_KEY=sk-your-key
 OPENAI_BASE_URL=https://api.openai.com/v1
-OPENAI_MODEL=gpt-4o-mini
+OPENAI_MODEL=gpt-5.4-pro
 ```
 
 Any OpenAI-compatible API works:
 
 | Provider | Notes |
 |---|---|
-| OpenAI | GPT-4o-mini recommended |
+| OpenAI | GPT-5.4 Pro recommended |
 | DeepSeek | Cost-effective alternative |
 | Any compatible | Custom `OPENAI_BASE_URL` |
 
@@ -152,7 +152,7 @@ These are intentional product choices, not shortcuts:
 | **Evidence on every item** | Each item cites original text. Users verify — not blindly trust. / 每条结果附原文依据，用户验证而非盲信 |
 | **Confidence marking** | Surface what AI is uncertain about. / 暴露 AI 不确定的地方 |
 | **Human-in-the-loop** | AI proposes, humans decide. Checkbox = "I reviewed this." / AI 提议，人拍板 |
-| **"待指定" for null fields** | AI admits gaps instead of guessing. / AI 承认不知道，而非瞎猜 |
+| **Explicit placeholder for missing fields** | When an owner/deadline can't be determined, the UI shows a clear placeholder (e.g. "待指定") instead of guessing. / AI 承认不知道，而非瞎猜 |
 | **Review hints before export** | Nudge users to complete review before sharing. / 引导用户确认后再发出 |
 | **No history, no accounts** | Single-use by design. Paste, analyze, export, done. / 刻意不做，保持简单 |
 | **Mock mode** | Demo and real flow are identical. / 演示和真实体验完全一致 |
