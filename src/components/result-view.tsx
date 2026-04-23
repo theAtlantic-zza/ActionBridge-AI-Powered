@@ -99,7 +99,7 @@ export function ResultView({
         )}
 
         {/* Summary stat cards — full width, always visible */}
-        <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-5">
           <SummaryCard
             label="Action Items"
             value={result.tasks.length}
@@ -120,6 +120,7 @@ export function ResultView({
             value={needsReviewCount}
             accent="text-red-500"
           />
+          <NewAnalysisCard onClick={onNewAnalysis} />
         </div>
 
         {/* ── Two-column layout ── */}
@@ -291,14 +292,6 @@ export function ResultView({
               </div>
             </div>
 
-            {/* New analysis */}
-            <button
-              onClick={onNewAnalysis}
-              className="w-full rounded-xl border border-stone-200/60 bg-white py-3 text-sm font-medium text-stone-500 hover:bg-stone-50 hover:text-[#1a1a2e] transition-all"
-            >
-              ← 新建分析
-            </button>
-
             <p className="hidden lg:block text-[11px] leading-relaxed text-stone-400">
               AI 负责提取，你负责拍板。每条结果附有依据原文。
             </p>
@@ -323,5 +316,30 @@ function SummaryCard({
       <p className={`text-2xl font-bold tabular-nums ${accent}`}>{value}</p>
       <p className="mt-0.5 text-xs text-stone-500">{label}</p>
     </div>
+  );
+}
+
+function NewAnalysisCard({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group rounded-xl border border-stone-200/60 bg-white px-4 py-3 text-left shadow-sm transition-all hover:bg-stone-50 active:scale-[0.99]"
+    >
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold text-[#1a1a2e]">新建分析</p>
+        <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-stone-200 bg-white text-stone-400 group-hover:text-stone-600 transition-colors">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+            <path
+              d="M6 2v8M2 6h8"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
+          </svg>
+        </span>
+      </div>
+      <p className="mt-1 text-xs text-stone-500">重新粘贴/上传并开始</p>
+    </button>
   );
 }
