@@ -95,6 +95,16 @@ export function InputView({ onAnalyze }: InputViewProps) {
         const res = await fetch("/api/extract", { method: "POST", body: fd });
         const data = await res.json();
         if (!res.ok) {
+          // If the PDF has no text layer, offer OCR fallback instead of just failing.
+          if (res.status === 422) {
+            setOcrCandidate({
+              file,
+              reason:
+                "这份 PDF 看起来是截图/扫描件（无可提取文本层），可尝试 OCR 识别。",
+            });
+          } else {
+            setOcrCandidate(null);
+          }
           const detail =
             typeof data.detail === "string" && data.detail ? `（${data.detail}）` : "";
           throw new Error((data.error || "PDF 解析失败") + detail);
