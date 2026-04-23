@@ -30,6 +30,31 @@ function normalizeExtractedText(raw: string): string {
     .trim();
 }
 
+async function renderPdfFirstPageToDataUrl(file: File): Promise<string> {
+  // Dynamic import to avoid SSR/prerender errors (DOMMatrix not defined).
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const workerSrc = new URL(
+    "pdfjs-dist/legacy/build/pdf.worker.min.mjs",
+    import.meta.url
+  ).toString();
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+  (pdfjs as any).GlobalWorkerOptions.workerSrc = workerSrc;
+
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  const getDocument = (pdfjs as any).getDocument as (args: any) => any;
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await getDocument({ data: arrayBuffer }).promise;
+  const page = await pdf.getPage(1);
+  const viewport = page.getViewport({ scale: 2 });
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("无法创建画布上下文");
+  canvas.width = Math.floor(viewport.width);
+  canvas.height = Math.floor(viewport.height);
+  await page.render({ canvas, canvasContext: ctx, viewport }).promise;
+  return canvas.toDataURL("image/png");
+}
+
 interface InputViewProps {
   onAnalyze: (text: string) => void;
 }
@@ -37,6 +62,8 @@ interface InputViewProps {
 export function InputView({ onAnalyze }: InputViewProps) {
   const [text, setText] = useState("");
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>(null);
+  const [ocrCandidate, setOcrCandidate] = useState<{ file: File; reason: string } | null>(null);
+  const [ocrBusy, setOcrBusy] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = async (file: File) => {
@@ -79,6 +106,14 @@ export function InputView({ onAnalyze }: InputViewProps) {
       const looksLikeNoTextLayer = normalized.length < 30;
 
       if (!normalized || looksLikeNoTextLayer) {
+        if (ext === "pdf") {
+          setOcrCandidate({
+            file,
+            reason: "这份 PDF 看起来是截图/扫描件（无可提取文本层），可尝试 OCR 识别。",
+          });
+        } else {
+          setOcrCandidate(null);
+        }
         setUploadStatus({
           type: "error",
           message:
@@ -90,6 +125,7 @@ export function InputView({ onAnalyze }: InputViewProps) {
       }
 
       setText(normalized);
+      setOcrCandidate(null);
       const charCount = normalized.length;
       setUploadStatus({
         type: "success",
@@ -102,6 +138,51 @@ export function InputView({ onAnalyze }: InputViewProps) {
         type: "error",
         message: e instanceof Error ? e.message : "文件解析失败",
       });
+    }
+  };
+
+  const handleTryOcr = async () => {
+    if (!ocrCandidate) return;
+    setOcrBusy(true);
+    setUploadStatus({ type: "loading", message: "正在进行 OCR 识别（第 1 页）…" });
+    try {
+      const imageDataUrl = await renderPdfFirstPageToDataUrl(ocrCandidate.file);
+      const saved = localStorage.getItem("actionbridge_api_config");
+      const cfg = saved ? (JSON.parse(saved) as { apiKey?: string; baseUrl?: string }) : {};
+      const apiKey = (cfg.apiKey || "").trim();
+      const baseUrl = (cfg.baseUrl || "").trim() || "https://dashscope.aliyuncs.com/compatible-mode/v1";
+
+      const res = await fetch("/api/ocr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageDataUrl, apiKey, baseUrl }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        const detail =
+          typeof data.detail === "string" && data.detail ? `（${data.detail}）` : "";
+        throw new Error((data.error || "OCR 失败") + detail);
+      }
+
+      const normalized = normalizeExtractedText(String(data.text || ""));
+      if (!normalized || normalized.length < 20) {
+        throw new Error("OCR 未识别到有效文本");
+      }
+
+      setText(normalized);
+      setOcrCandidate(null);
+      setUploadStatus({
+        type: "success",
+        message: "OCR 已提取文本并回填，请检查后点击「开始分析」",
+      });
+      setTimeout(() => setUploadStatus(null), 8000);
+    } catch (e) {
+      setUploadStatus({
+        type: "error",
+        message: e instanceof Error ? e.message : "OCR 过程中出现错误",
+      });
+    } finally {
+      setOcrBusy(false);
     }
   };
 
@@ -332,6 +413,24 @@ export function InputView({ onAnalyze }: InputViewProps) {
                 </button>
               )}
             </p>
+          )}
+
+          {/* OCR helper for scanned/screenshot PDF */}
+          {ocrCandidate && (
+            <div className="mt-2 rounded-xl border border-amber-200/60 bg-amber-50/60 px-3 py-2">
+              <p className="text-xs text-amber-700">{ocrCandidate.reason}</p>
+              <button
+                type="button"
+                onClick={handleTryOcr}
+                disabled={ocrBusy}
+                className="mt-2 rounded-lg bg-[#1a1a2e] px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#111126] disabled:opacity-50"
+              >
+                {ocrBusy ? "OCR 识别中…" : "尝试 OCR 提取（第 1 页）"}
+              </button>
+              <p className="mt-1.5 text-[11px] text-amber-700/80">
+                提示：OCR 会把第 1 页截图上传到阿里云进行识别，回填后请人工检查再分析。
+              </p>
+            </div>
           )}
 
           {/* Buttons */}
